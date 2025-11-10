@@ -23,7 +23,6 @@ router.post("/logout", logout);
 // Export the router so it can be used in server.js
 // In server.js, it will be mounted on the /api/auth path
 export default router;
-ac
 
 
 
