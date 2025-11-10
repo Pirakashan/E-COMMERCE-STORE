@@ -23,7 +23,7 @@ const setCookies = (res, accessToken, refreshToken) => {
     res.cookie("accessToken", accessToken, {
         httpOnly: true, //prevents xss attacks, cross site scripting attack
         secure:process.env.NODE_ENV === "production",
-        samesite:"strict", // prevents CRRF attack, cross-site request forgery attack
+        sameSite:"strict", // prevents CRRF attack, cross-site request forgery attack
         maxAge: 15 * 60 * 1000, // 15 minutes
     });
 res.cookie("refreshToken", refreshToken, {
@@ -75,6 +75,7 @@ export const signup = async (req, res) => {
             message: "User created successfully" });
     } catch (error) {
         // If any error occurs (e.g., DB connection error), send 500 Internal Server Error
+        console.log("Error in signup controller:", error.message);
         res.status(500).json({ message: error.message });
     }
 };
@@ -82,9 +83,32 @@ export const signup = async (req, res) => {
 // --------------------------- LOGIN CONTROLLER ---------------------------
 // Handles user login
 export const login = async (req, res) => {
-    // Placeholder for login logic
-    // Eventually, this will check user credentials, generate a JWT token, and return it
-    res.send("login route called");
+    try{
+   
+        const { email, password } = req.body;
+        const user = await User.findOne({email}); 
+        
+        
+        if (user && (await user.comparePassword(password))){
+            const { accessToken, refreshToken } = generateTokens(user._id);
+         
+            await storeRefreshToken(user._id, refreshToken);
+            setCookies(res, accessToken, refreshToken);
+
+            res.json({
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role:user.role,
+            });
+        } else{
+            res.status(401).json({ message: "Invalid email or password"});
+        }
+    } catch (error){
+        console.log("Error in login controller:", error.message);
+        res.status(500).json({ message: error.message});
+    }
+ 
 };
 
 // --------------------------- LOGOUT CONTROLLER ---------------------------
@@ -94,18 +118,23 @@ export const logout = async (req, res) => {
         const refreshToken = req.cookies.refreshToken;
         if(refreshToken){
             const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-            await redis.del(`refreshtoken:${decoded.userId}`);
+            await redis.del(`refreshToken:${decoded.userId}`);
         }
         
         res.clearCookie("accessToken");
         res.clearCookie("refreshToken");
         res.json({message: "Logged out successfully"});
     } catch (error){
+        console.log("Error in logout controller:", error.message);
         res.status(500).json({message: "Server error", error: error.message});
 
     }
     
 };
+
+
+
+
 
 
 
