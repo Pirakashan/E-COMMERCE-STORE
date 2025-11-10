@@ -1,5 +1,40 @@
 // Import the User model to interact with MongoDB
+import { redis } from '../lib/redis.js';
 import User from "../models/user.model.js";
+import jwt from "jsonwebtoken";
+
+const generateTokens = (userId) => {
+    const accessToken = jwt.sign({ userId}, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "15m",
+    });
+
+    const refreshToken = jwt.sign({userId}, process.env.REFRESH_TOKEN_SECRET,{
+        expiresIn: "7d",
+    });
+
+    return { accessToken, refreshToken};
+};
+
+const storeRefreshToken = async(userId,refreshToken) => {
+    await redis.set(`refreshToken:${userId}`, refreshToken, "EX", 7*24*60*60); // 7 days
+}
+
+const setCookies = (res, accessToken, refreshToken) => {
+    res.cookie("accessToken", accessToken, {
+        httpOnly: true, //prevents xss attacks, cross site scripting attack
+        secure:process.env.NODE_ENV === "production",
+        samesite:"strict", // prevents CRRF attack, cross-site request forgery attack
+        maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+res.cookie("refreshToken", refreshToken, {
+        httpOnly: true, //prevents xss attacks, cross site scripting attack
+        secure:process.env.NODE_ENV === "production",
+        sameSite:"strict", // prevents CRRF attack, cross-site request forgery attack
+        maxAge: 7 * 24 * 60 * 60 * 1000,   // 7 days
+    });
+};
+
+
 
 // --------------------------- SIGNUP CONTROLLER ---------------------------
 // Handles user registration
@@ -20,11 +55,24 @@ export const signup = async (req, res) => {
         // The password will automatically be hashed because of the pre-save hook in user.model.js
         const user = await User.create({ name, email, password });
 
+        //authenticate
+       const {accessToken, refreshToken}  = generateTokens(user._id);
+       await storeRefreshToken(user._id, refreshToken);
+
+        setCookies(res, accessToken, refreshToken);
+
         // TODO: Authenticate user (e.g., generate JWT token)
         // This is where you would normally log in the user immediately after signup
 
         // Send a success response to the client
-        res.status(201).json({ message: "User created successfully" });
+        res.status(201).json({
+            user:{
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+            },
+            message: "User created successfully" });
     } catch (error) {
         // If any error occurs (e.g., DB connection error), send 500 Internal Server Error
         res.status(500).json({ message: error.message });
@@ -42,9 +90,21 @@ export const login = async (req, res) => {
 // --------------------------- LOGOUT CONTROLLER ---------------------------
 // Handles user logout
 export const logout = async (req, res) => {
-    // Placeholder for logout logic
-    // Eventually, this will invalidate the user's token or session
-    res.send("logout route called");
+    try{
+        const refreshToken = req.cookies.refreshToken;
+        if(refreshToken){
+            const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+            await redis.del(`refreshtoken:${decoded.userId}`);
+        }
+        
+        res.clearCookie("accessToken");
+        res.clearCookie("refreshToken");
+        res.json({message: "Logged out successfully"});
+    } catch (error){
+        res.status(500).json({message: "Server error", error: error.message});
+
+    }
+    
 };
 
 
