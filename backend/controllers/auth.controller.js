@@ -1,97 +1,78 @@
-// Import the User model to interact with MongoDB
 import { redis } from '../lib/redis.js';
 import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 
 const generateTokens = (userId) => {
-    const accessToken = jwt.sign({ userId}, process.env.ACCESS_TOKEN_SECRET, {
+    const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "15m",
     });
 
-    const refreshToken = jwt.sign({userId}, process.env.REFRESH_TOKEN_SECRET,{
+    const refreshToken = jwt.sign({ userId }, process.env.REFRESH_TOKEN_SECRET, {
         expiresIn: "7d",
     });
 
-    return { accessToken, refreshToken};
+    return { accessToken, refreshToken };
 };
 
-const storeRefreshToken = async(userId,refreshToken) => {
-    await redis.set(`refreshToken:${userId}`, refreshToken, "EX", 7*24*60*60); // 7 days
+const storeRefreshToken = async (userId, refreshToken) => {
+    await redis.set(`refreshToken:${userId}`, refreshToken, "EX", 7 * 24 * 60 * 60);
 }
 
 const setCookies = (res, accessToken, refreshToken) => {
     res.cookie("accessToken", accessToken, {
-        httpOnly: true, //prevents xss attacks, cross site scripting attack
-        secure:process.env.NODE_ENV === "production",
-        sameSite:"strict", // prevents CRRF attack, cross-site request forgery attack
-        maxAge: 15 * 60 * 1000, // 15 minutes
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 15 * 60 * 1000,
     });
-res.cookie("refreshToken", refreshToken, {
-        httpOnly: true, //prevents xss attacks, cross site scripting attack
-        secure:process.env.NODE_ENV === "production",
-        sameSite:"strict", // prevents CRRF attack, cross-site request forgery attack
-        maxAge: 7 * 24 * 60 * 60 * 1000,   // 7 days
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 };
 
-
-
-// --------------------------- SIGNUP CONTROLLER ---------------------------
-// Handles user registration
 export const signup = async (req, res) => {
-    // Extract name, email, and password from the request body
     const { email, password, name } = req.body;
 
     try {
-        // Check if a user with the given email already exists in the database
         const userExists = await User.findOne({ email });
 
-        // If user exists, send a 400 Bad Request response
-        if(userExists){
+        if (userExists) {
             return res.status(400).json({ message: "user already exists" });
         }
 
-        // Create a new user in the database
-        // The password will automatically be hashed because of the pre-save hook in user.model.js
         const user = await User.create({ name, email, password });
 
-        //authenticate
-       const {accessToken, refreshToken}  = generateTokens(user._id);
-       await storeRefreshToken(user._id, refreshToken);
+        const { accessToken, refreshToken } = generateTokens(user._id);
+        await storeRefreshToken(user._id, refreshToken);
 
         setCookies(res, accessToken, refreshToken);
 
-        // TODO: Authenticate user (e.g., generate JWT token)
-        // This is where you would normally log in the user immediately after signup
-
-        // Send a success response to the client
         res.status(201).json({
-            user:{
+            user: {
                 _id: user._id,
                 name: user.name,
                 email: user.email,
                 role: user.role,
             },
-            message: "User created successfully" });
+            message: "User created successfully"
+        });
     } catch (error) {
-        // If any error occurs (e.g., DB connection error), send 500 Internal Server Error
         console.log("Error in signup controller:", error.message);
         res.status(500).json({ message: error.message });
     }
 };
 
-// --------------------------- LOGIN CONTROLLER ---------------------------
-// Handles user login
 export const login = async (req, res) => {
-    try{
-   
+    try {
         const { email, password } = req.body;
-        const user = await User.findOne({email}); 
-        
-        
-        if (user && (await user.comparePassword(password))){
+        const user = await User.findOne({ email });
+
+        if (user && (await user.comparePassword(password))) {
             const { accessToken, refreshToken } = generateTokens(user._id);
-         
+
             await storeRefreshToken(user._id, refreshToken);
             setCookies(res, accessToken, refreshToken);
 
@@ -99,63 +80,62 @@ export const login = async (req, res) => {
                 _id: user._id,
                 name: user.name,
                 email: user.email,
-                role:user.role,
+                role: user.role,
             });
-        } else{
-            res.status(401).json({ message: "Invalid email or password"});
+        } else {
+            res.status(401).json({ message: "Invalid email or password" });
         }
-    } catch (error){
+    } catch (error) {
         console.log("Error in login controller:", error.message);
-        res.status(500).json({ message: error.message});
+        res.status(500).json({ message: error.message });
     }
- 
 };
 
-// --------------------------- LOGOUT CONTROLLER ---------------------------
-// Handles user logout
 export const logout = async (req, res) => {
-    try{
+    try {
         const refreshToken = req.cookies.refreshToken;
-        if(refreshToken){
+        if (refreshToken) {
             const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
             await redis.del(`refreshToken:${decoded.userId}`);
         }
-        
+
         res.clearCookie("accessToken");
         res.clearCookie("refreshToken");
-        res.json({message: "Logged out successfully"});
-    } catch (error){
+        res.json({ message: "Logged out successfully" });
+    } catch (error) {
         console.log("Error in logout controller:", error.message);
-        res.status(500).json({message: "Server error", error: error.message});
-
+        res.status(500).json({ message: "Server error", error: error.message });
     }
-    
 };
 
+//this will refresh the access token
+export const refreshToken = async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
 
+        if (!refreshToken) {
+            return res.ststus(401).json({ message: "No refresh token provider"});
+}
+        
+        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+        const storedToken = await redis.get(`refresh_token:${decoded.userId}`);
 
+        if(storedToken!== refreshToken){
+            return res.status(401).json({ message: "Invalid refresh token"});
+        }
 
+        const accessToken = jwt.sign({ userId: decoded.userId}, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m"});
 
+        res.cookies("accessToken", accessToken, {
+            heepOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 15 * 60 * 1000,
+        });
 
-
-
-
-/*
-Full Flow for Signup
-
-Client → POST /api/auth/signup with JSON body { name, email, password }.
-
-Server.js → routes request to auth.route.js.
-
-auth.route.js → matches /signup → calls signup controller.
-
-signup controller:
-
-Checks if user exists in DB.
-
-If not, creates a new user (password hashed automatically).
-
-MongoDB → stores new user document.
-
-Controller → sends response { message: "User created successfully" } back to client.
-*/ 
+        res.json({message: "Token refreshed Successfully"});
+} catch (error) {
+    console.log("Erroe in refresh token controller:", error.message);
+    res.status(500).json({ message: "Server error", error:error.message});
+}
+};
