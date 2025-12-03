@@ -15,7 +15,7 @@ const generateTokens = (userId) => {
 };
 
 const storeRefreshToken = async (userId, refreshToken) => {
-    await redis.set(`refreshToken:${userId}`, refreshToken, "EX", 7 * 24 * 60 * 60);
+    await redis.set(`refresh_token:${userId}`, refreshToken, "EX", 7 * 24 * 60 * 60);
 }
 
 const setCookies = (res, accessToken, refreshToken) => {
@@ -44,7 +44,8 @@ export const signup = async (req, res) => {
         }
 
         const user = await User.create({ name, email, password });
-
+        
+        //authenticate
         const { accessToken, refreshToken } = generateTokens(user._id);
         await storeRefreshToken(user._id, refreshToken);
 
@@ -114,7 +115,7 @@ export const refreshToken = async (req, res) => {
         const refreshToken = req.cookies.refreshToken;
 
         if (!refreshToken) {
-            return res.ststus(401).json({ message: "No refresh token provider"});
+            return res.status(401).json({ message: "No refresh token provided"});
 }
         
         const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
@@ -123,11 +124,11 @@ export const refreshToken = async (req, res) => {
         if(storedToken!== refreshToken){
             return res.status(401).json({ message: "Invalid refresh token"});
         }
-
+  
         const accessToken = jwt.sign({ userId: decoded.userId}, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m"});
 
-        res.cookies("accessToken", accessToken, {
-            heepOnly: true,
+        res.cookie("accessToken", accessToken, {
+            httpOnly: true, 
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
             maxAge: 15 * 60 * 1000,
@@ -135,7 +136,9 @@ export const refreshToken = async (req, res) => {
 
         res.json({message: "Token refreshed Successfully"});
 } catch (error) {
-    console.log("Erroe in refresh token controller:", error.message);
+    console.log("Error in refresh token controller:", error.message);
     res.status(500).json({ message: "Server error", error:error.message});
 }
 };
+
+
