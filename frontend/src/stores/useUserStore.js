@@ -12,7 +12,7 @@ export const useUserStore = create((set, get) => ({
 
 		if (password !== confirmPassword) {
 			set({ loading: false });
-			return toast.error("Passwords do not match");
+			return t oast.error("Passwords do not match");
 		}
 
 		try {
@@ -28,7 +28,7 @@ export const useUserStore = create((set, get) => ({
 
 		try {
 			const res = await axios.post("/auth/login", { email, password });
-            console.log("user is here ", res.data);
+         
 			set({ user: res.data, loading: false });
 		} catch (error) {
 			set({ loading: false });
