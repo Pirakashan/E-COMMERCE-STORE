@@ -12,7 +12,7 @@ export const useUserStore = create((set, get) => ({
 
 		if (password !== confirmPassword) {
 			set({ loading: false });
-			return t oast.error("Passwords do not match");
+			return toast.error("Passwords do not match");
 		}
 
 		try {
@@ -36,8 +36,44 @@ export const useUserStore = create((set, get) => ({
 		}
 	},
 
+    logout: async () => {
+		try {
+			await axios.post("/auth/logout");
+			set({ user: null });
+		} catch (error) {
+			toast.error(error.response?.data?.message || "An error occurred during logout");
+		}
+	},
+    
+     checkAuth: async () => {
+		set({ checkingAuth: true });
+		try {
+			const response = await axios.get("/auth/profile");
+			set({ user: response.data, checkingAuth: false });
+		} catch (error) {
+			console.log(error.message);
+			set({ checkingAuth: false, user: null });
+		}
+	},
+    
+	refreshToken: async () => {
+		// Prevent multiple simultaneous refresh attempts
+		if (get().checkingAuth) return;
+
+		set({ checkingAuth: true });
+		try {
+			const response = await axios.post("/auth/refresh-token");
+			set({ checkingAuth: false });
+			return response.data;
+		} catch (error) {
+			set({ user: null, checkingAuth: false });
+			throw error;
+		}
+	},
 	
 }));
+
+
 
 // TODO: Implement the axios interceptors for refreshing access token
 
