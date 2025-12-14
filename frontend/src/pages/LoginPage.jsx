@@ -7,12 +7,15 @@ import { LogIn, Mail, Lock, ArrowRight, Loader } from "lucide-react";
 const LoginPage = () => {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-const loading = false;
+    const loading = false;
 	//const { login, loading } = useUserStore();
+
+    //const { login } = useUserStore();
 
 	const handleSubmit = (e) => {
 		e.preventDefault();
 		console.log(email, password);
+		login(email, password) ; 
 		//login(email, password);
 	};
 
