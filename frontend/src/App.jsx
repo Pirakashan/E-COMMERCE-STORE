@@ -1,14 +1,16 @@
-import {Navigate, Route, Routes} from 'react-router-dom';
+import { Navigate, Route, Routes } from "react-router-dom";
+
 import HomePage from "./pages/HomePage";
 import SignUpPage from "./pages/SignUpPage";
 import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
 
+
 import Navbar from "./components/Navbar";
 import { Toaster } from "react-hot-toast";
-import { useUserStore } from './stores/useUserStore';
+import { useUserStore } from "./stores/useUserStore";
 import { useEffect } from "react";
-import LoadingSpinner from './components/LoadingSpinner';
+import LoadingSpinner from "./components/LoadingSpinner";
 
 
 function App() {
