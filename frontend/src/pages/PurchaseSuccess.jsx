@@ -5,10 +5,6 @@ import { useCartStore } from "../stores/useCartStore";
 import axios from "../lib/axios";
 import Confetti from "react-confetti";
 
-const PurchaseSuccessPage = () => {
-	const [isProcessing, setIsProcessing] = useState(true);
-	const { clearCart } = useCartStore();
-	const [error, setError] = useState(null);
 
 	useEffect(() => {
 		const handleCheckoutSuccess = async (sessionId) => {
