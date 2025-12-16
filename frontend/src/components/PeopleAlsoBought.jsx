@@ -4,9 +4,7 @@ import axios from "../lib/axios";
 import toast from "react-hot-toast";
 import LoadingSpinner from "./LoadingSpinner";
 
-const PeopleAlsoBought = () => {
-	const [recommendations, setRecommendations] = useState([]);
-	const [isLoading, setIsLoading] = useState(true);
+
 
 	useEffect(() => {
 		const fetchRecommendations = async () => {
