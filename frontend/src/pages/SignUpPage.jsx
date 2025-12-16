@@ -4,24 +4,22 @@ import { UserPlus, Mail, Lock, User, ArrowRight, Loader } from "lucide-react";
 import { motion } from "framer-motion";
 import { useUserStore } from "../stores/useUserStore";
 
-export const SignUpPage = () => {
-  const loading = false;
-  const [formData, setFormData] = useState({
-    name:"",
-    email:"",
-    password:"",
-    confirmPassword:"",
-  });
+const SignUpPage = () => {
+	const [formData, setFormData] = useState({
+		name: "",
+		email: "",
+		password: "",
+		confirmPassword: "",
+	});
 
-const {signup} =useUserStore()
+	const { signup, loading } = useUserStore();
 
-  const handleSubmit = (e) =>{
-    e.preventDefault();
-	
-    signup(formData);
-  };
-  
-return (
+	const handleSubmit = (e) => {
+		e.preventDefault();
+		signup(formData);
+	};
+
+	return (
 		<div className='flex flex-col justify-center py-12 sm:px-6 lg:px-8'>
 			<motion.div
 				className='sm:mx-auto sm:w-full sm:max-w-md'
@@ -147,14 +145,14 @@ return (
 							)}
 						</button>
 					</form>
-  <p className='mt-8 text-center text-sm text-gray-400'>
+
+					<p className='mt-8 text-center text-sm text-gray-400'>
 						Already have an account?{" "}
 						<Link to='/login' className='font-medium text-emerald-400 hover:text-emerald-300'>
 							Login here <ArrowRight className='inline h-4 w-4' />
 						</Link>
 					</p>
-    
-</div>
+				</div>
 			</motion.div>
 		</div>
 	);

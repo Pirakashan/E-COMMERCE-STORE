@@ -18,6 +18,7 @@ const CreateProductForm = () => {
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
+        createProduct(newProduct);
 		try {
 			await createProduct(newProduct);
 			setNewProduct({ name: "", description: "", price: "", category: "", image: "" });
