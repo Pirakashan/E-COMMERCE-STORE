@@ -18,7 +18,6 @@ const CreateProductForm = () => {
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-        createProduct(newProduct);
 		try {
 			await createProduct(newProduct);
 			setNewProduct({ name: "", description: "", price: "", category: "", image: "" });
@@ -160,4 +159,4 @@ const CreateProductForm = () => {
 		</motion.div>
 	);
 };
-export default CreateProductForm; 
+export default CreateProductForm;
